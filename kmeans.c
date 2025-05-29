@@ -1,34 +1,209 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#define eps = 0.001
+#define eps 0.001
 
 typedef struct
 {
-    double value;
-    struct cord *next;
-} cord;
-
-typedef struct
-{
-    struct vector *next;
-    struct cord *cords;
+    float *coordinates;
+    int dimension;
 } vector;
 
+typedef struct
+{
+    vector *centroid;
+    vector *members;
+    int num_of_members;
+} cluster;
+
+int checkConvergence(vector *v1, vector *v2);
+void assignVectorTocluster(vector *v, cluster *clus);
+void updateCentroid(cluster *clus);
+double distance(vector *v1, vector *v2);
+vector *sumVectors(vector *vectors);
+vector *mulByScalar(vector *v, double scalar);
+void emptycluster(cluster *clus);
+cluster *initiateClusters(vector *vec_array, int num_of_clusters);
+cluster *iterateAlgorithm(cluster *cluster_array, vector *all_vectors, int K, int N, int iters);
 vector *getInput();
 void errorHandling();
-double distance(vector *v1, vector *v2);
+void printOutput(cluster *clus, int K, int D);
+void freeMemory(cluster *clus, vector *all_vectors, int K, int N);
+
+int checkConvergence(vector *v1, vector *v2)
+{
+    return distance(v1, v2) < eps;
+}
+
+void assignVectorTocluster(vector *v, cluster *clus)
+{
+    clus->members = (vector *)realloc(clus->members, ((clus->num_of_members) + 1) * sizeof(vector));
+    clus->num_of_members++;
+    if (clus->members == NULL)
+    {
+        errorHandling();
+    }
+    clus->members[clus->num_of_members - 1] = *v;
+}
+
+void updateCentroid(cluster *clus)
+{
+    double scalar = 1 / (clus->num_of_members);
+    vector *sum_vector = sumVectors(clus->members);
+    clus->centroid = mulByScalar(sum_vector, scalar);
+}
 
 double distance(vector *v1, vector *v2)
 {
-    cord *curr_cord_v1 = v1->cords;
-    cord *curr_cord_v2 = v2->cords;
+    double v1_coordinates[] = *(v1->coordinates);
+    double v2_coordinates[] = *(v2->coordinates);
     double sum = 0;
-    while ((curr_cord_v1->next) != NULL)
+    for (int i = 0; i < v1->dimension; i++)
     {
-        sum += pow(curr_cord_v1->value - curr_cord_v2->value, 2);
+        sum += pow(v1_coordinates[i] - v2_coordinates[i], 2);
     }
     return sqrt(sum);
+}
+
+vector *sumVectors(vector *vectors)
+{
+    vector *sum_vec = malloc(sizeof(vector));
+    sum_vec->dimension = vectors[0].dimension;
+    sum_vec->coordinates = calloc(sum_vec->dimension, sizeof(float));
+    if (sum_vec == NULL)
+    {
+        errorHandling();
+    }
+    int num_of_vectors = sizeof(vectors) / sizeof(vector);
+    for (int i = 0; i < sum_vec->dimension; i++)
+    {
+        for (int j = 0; j < num_of_vectors; j++)
+        {
+            sum_vec->coordinates[i] += vectors[j].coordinates[i];
+        }
+    }
+    return sum_vec;
+}
+
+vector *mulByScalar(vector *v, double scalar)
+{
+    vector *mul_vec = malloc(sizeof(vector));
+    mul_vec->dimension = v->dimension;
+    mul_vec->coordinates = calloc(v->dimension, sizeof(float));
+    if (mul_vec == NULL)
+    {
+        errorHandling();
+    }
+    for (int i = 0; i < mul_vec->dimension; i++)
+    {
+        mul_vec->coordinates[i] = v->coordinates[i] * scalar;
+    }
+    return mul_vec;
+}
+
+void emptycluster(cluster *clus)
+{
+    free(clus->members);
+}
+cluster *initiateClusters(vector *all_vectors, int K)
+{
+    cluster *cluster_array = (cluster *)malloc(K * sizeof(cluster));
+    if (cluster_array == NULL)
+    {
+        errorHandling();
+    }
+    for (int i = 0; i < K; i++)
+    {
+        cluster_array[i].centroid = &all_vectors[i];
+    }
+    return cluster_array;
+}
+cluster *iterateAlgorithm(cluster *cluster_array, vector *all_vectors, int K, int N, int iter)
+{
+    for (int i = 0; i < iter; i++)
+    {
+        int convergence_flag = 0;
+        for (int j = 0; j < N; j++)
+        {
+            double min_dist = distance(&all_vectors[j], cluster_array[0].centroid);
+            cluster *potencial_cluster = &cluster_array[0];
+            for (int k = 1; k < K; k++)
+            {
+                double new_dist = distance(&all_vectors[j], cluster_array[k].centroid);
+                if (new_dist < min_dist)
+                {
+                    min_dist = new_dist;
+                    potencial_cluster = &cluster_array[k];
+                }
+            }
+            assignVectorTocluster(&all_vectors[j], potencial_cluster);
+        }
+        for (int k = 0; k < K; k++)
+        {
+            vector *old_centroid = cluster_array[k].centroid;
+            updateCentroid(&cluster_array[k]);
+            convergence_flag += checkConvergence(old_centroid, cluster_array[k].centroid);
+            emptycluster(&cluster_array[k]);
+        }
+        if (convergence_flag == K)
+            break;
+    }
+    return cluster_array;
+}
+
+vector *getInput()
+{
+    float n;
+    char c;
+    vector *all_vectors = (vector *)malloc(sizeof(vector));
+    if (all_vectors == NULL)
+    {
+        errorHandling();
+    }
+    vector curr_vector;
+    curr_vector.coordinates = (float *)malloc(sizeof(float));
+    if (curr_vector.coordinates == NULL)
+    {
+        errorHandling();
+    }
+    int i = 0, j = 0;
+    int vector_counter = 0;
+    while (scanf("%lf%c", &n, &c) == 2)
+    {
+        int dimension_counter = 0;
+        int coordinates_counter = 0;
+        if (c == '\n')
+        {
+            curr_vector.coordinates[j] = n;
+            all_vectors[i] = curr_vector;
+            all_vectors = (vector *)realloc(all_vectors, sizeof(vector) * (vector_counter + 1));
+            if (all_vectors == NULL)
+            {
+                errorHandling();
+            }
+            vector new_vector;
+            new_vector.coordinates = (float *)malloc(sizeof(float));
+            new_vector.dimension = dimension_counter;
+            if (new_vector.coordinates == NULL)
+            {
+                errorHandling();
+            }
+            curr_vector = new_vector;
+            vector_counter++;
+            i++;
+            continue;
+        }
+        curr_vector.coordinates[j] = n;
+        curr_vector.coordinates = (float *)realloc(curr_vector.coordinates, sizeof(float) * (coordinates_counter + 1));
+        if (curr_vector.coordinates == NULL)
+        {
+            errorHandling();
+        }
+        coordinates_counter++;
+        dimension_counter++;
+        j++;
+    }
+    return all_vectors;
 }
 
 void errorHandling()
@@ -37,80 +212,55 @@ void errorHandling()
     exit(1);
 }
 
-vector *getInput()
+void printOutput(cluster *clus, int K, int d)
 {
-
-    vector *head_vec, *curr_vec, *next_vec;
-    cord *head_cord, *curr_cord, *next_cord;
-    int i, j, rows = 0, cols;
-    double n;
-    char c;
-
-    head_cord = malloc(sizeof(cord));
-    if (head_cord != NULL)
-        errorHandling();
-    curr_cord = head_cord;
-    curr_cord->next = NULL;
-
-    head_vec = malloc(sizeof(vector));
-    if (head_vec != NULL)
-        errorHandling();
-    curr_vec = head_vec;
-    curr_vec->next = NULL;
-
-    while (scanf("%lf%c", &n, &c) == 2)
+    for (int i = 0; i < K; i++)
     {
-
-        if (c == '\n')
+        for (int j = 0; j < d; j++)
         {
-            curr_cord->value = n;
-            curr_vec->cords = head_cord;
-            curr_vec->next = malloc(sizeof(vector));
-            if (curr_vec->next != NULL)
-                errorHandling();
-            curr_vec = curr_vec->next;
-            curr_vec->next = NULL;
-            head_cord = malloc(sizeof(cord));
-            if (head_cord != NULL)
-                errorHandling();
-            curr_cord = head_cord;
-            curr_cord->next = NULL;
-            continue;
+            printf("Float: %.4f, Char: %c", clus[i].centroid->coordinates[j], ',');
         }
-
-        curr_cord->value = n;
-        curr_cord->next = malloc(sizeof(cord));
-        if (curr_cord->next != NULL)
-            errorHandling();
-        curr_cord = curr_cord->next;
-        curr_cord->next = NULL;
+        printf('\n');
     }
-    return head_vec;
 }
 
-int main(int argc, char *argv)
+void freeMemory(cluster *clus, vector *all_vectors, int K, int N)
 {
-    vector *head_vec = getInput();
-    int k = atoi(argv[1]);
-    int iter = atoi(argv[2]);
-    int dimension = 0;
-    cord *head_cords = head_vec->cords;
-    while (head_cords->next != NULL)
+    for (int i = 0; i < N; i++)
     {
-        dimension += 1;
+        free(all_vectors[i].coordinates);
     }
-    double centroids[k][dimension];
-    vector *curr_vec = head_vec;
-    for (int i = 0; i < k; i++)
+    free(all_vectors);
+    for (int i = 0; i < K; i++)
     {
-        cord *curr_cords = curr_vec->cords;
-        for (int j = 0; j < dimension; j++)
-        {
-            centroids[i][j] = curr_cords->value;
-            curr_cords = curr_cords->next;
-        }
-        curr_vec = curr_vec->next;
+        free(clus->members);
     }
+    free(clus);
+}
 
-    // free memory
+int main(int argc, char **argv)
+{
+    vector *all_vectors = getInput();
+    int dimension = all_vectors[0].dimension;
+    int K = atoi(argv[1]);
+    int N = sizeof(*all_vectors) / sizeof(vector);
+    if (!(K > 1 && K < N))
+    {
+        printf("Incorrect number of clusters!");
+        exit(1);
+    }
+    int iter = 400;
+    if (argc > 3)
+    {
+        iter = atoi(argv[2]);
+    }
+    if (!(iter > 1 && iter < 1000))
+    {
+        printf("Incorrect maximum iteration!");
+        exit(1);
+    }
+    cluster *cluster_array = initiateClusters(all_vectors, K);
+    cluster_array = iterateAlgorithm(cluster_array, all_vectors, K, N, iter);
+    printOutput(cluster_array, K, dimension);
+    freeMemory(cluster_array, all_vectors, K, N);
 }
