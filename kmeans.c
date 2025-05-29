@@ -1,20 +1,26 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+
 #define eps 0.001
 
 typedef struct
 {
     float *coordinates;
-    int dimension;
+    int dimension;  // uint
 } vector;
 
 typedef struct
 {
     vector *centroid;
     vector *members;
-    int num_of_members;
+    int num_of_members; // uint
 } cluster;
+
+typedef struct {
+    vector *all_vectors;
+    int num_vectors;
+} all_vecs;
 
 int checkConvergence(vector *v1, vector *v2);
 void assignVectorTocluster(vector *v, cluster *clus);
@@ -25,7 +31,7 @@ vector *mulByScalar(vector *v, double scalar);
 void emptycluster(cluster *clus);
 cluster *initiateClusters(vector *vec_array, int num_of_clusters);
 cluster *iterateAlgorithm(cluster *cluster_array, vector *all_vectors, int K, int N, int iters);
-vector *getInput();
+all_vecs getInput();
 void errorHandling();
 void printOutput(cluster *clus, int K, int D);
 void freeMemory(cluster *clus, vector *all_vectors, int K, int N);
@@ -51,6 +57,12 @@ void updateCentroid(cluster *clus)
     double scalar = 1 / (clus->num_of_members);
     vector *sum_vector = sumVectors(clus->members);
     clus->centroid = mulByScalar(sum_vector, scalar);
+    // TODO: here you have a memory leak! 
+    // sum_vector is allocated in sumVectors 
+    // then passed into mulByScalar 
+    // but mulByScalar allocates another vector for the result and 
+    // returns a pointer to the new allocated result vector
+    // then no one touches sum_vector again and the underlying memory will never be freed
 }
 
 double distance(vector *v1, vector *v2)
@@ -74,7 +86,7 @@ vector *sumVectors(vector *vectors)
     {
         errorHandling();
     }
-    int num_of_vectors = sizeof(vectors) / sizeof(vector);
+    int num_of_vectors = sizeof(vectors) / sizeof(vector); // TODO: you cant sizeof(vectors)
     for (int i = 0; i < sum_vec->dimension; i++)
     {
         for (int j = 0; j < num_of_vectors; j++)
@@ -105,6 +117,7 @@ void emptycluster(cluster *clus)
 {
     free(clus->members);
 }
+
 cluster *initiateClusters(vector *all_vectors, int K)
 {
     cluster *cluster_array = (cluster *)malloc(K * sizeof(cluster));
@@ -151,12 +164,13 @@ cluster *iterateAlgorithm(cluster *cluster_array, vector *all_vectors, int K, in
     return cluster_array;
 }
 
-vector *getInput()
+all_vecs getInput()
 {
     float n;
     char c;
-    vector *all_vectors = (vector *)malloc(sizeof(vector));
-    if (all_vectors == NULL)
+    all_vecs all_vectors;
+    all_vectors.all_vectors = (vector *)malloc(sizeof(vector));
+    if (all_vectors.all_vectors == NULL)
     {
         errorHandling();
     }
@@ -175,9 +189,9 @@ vector *getInput()
         if (c == '\n')
         {
             curr_vector.coordinates[j] = n;
-            all_vectors[i] = curr_vector;
-            all_vectors = (vector *)realloc(all_vectors, sizeof(vector) * (vector_counter + 1));
-            if (all_vectors == NULL)
+            all_vectors.all_vectors[i] = curr_vector;
+            all_vectors.all_vectors = (vector *)realloc(all_vectors.all_vectors, sizeof(vector) * (vector_counter + 1));
+            if (all_vectors.all_vectors == NULL)
             {
                 errorHandling();
             }
@@ -240,10 +254,10 @@ void freeMemory(cluster *clus, vector *all_vectors, int K, int N)
 
 int main(int argc, char **argv)
 {
-    vector *all_vectors = getInput();
-    int dimension = all_vectors[0].dimension;
+    all_vecs all_vectors = getInput();
+    int dimension = all_vectors.all_vectors[0].dimension;
     int K = atoi(argv[1]);
-    int N = sizeof(*all_vectors) / sizeof(vector);
+    int N = all_vectors.num_vectors;
     if (!(K > 1 && K < N))
     {
         printf("Incorrect number of clusters!");
@@ -259,8 +273,8 @@ int main(int argc, char **argv)
         printf("Incorrect maximum iteration!");
         exit(1);
     }
-    cluster *cluster_array = initiateClusters(all_vectors, K);
-    cluster_array = iterateAlgorithm(cluster_array, all_vectors, K, N, iter);
+    cluster *cluster_array = initiateClusters(&all_vectors, K);
+    cluster_array = iterateAlgorithm(cluster_array, &all_vectors, K, N, iter);
     printOutput(cluster_array, K, dimension);
-    freeMemory(cluster_array, all_vectors, K, N);
+    freeMemory(cluster_array, &all_vectors, K, N);
 }
