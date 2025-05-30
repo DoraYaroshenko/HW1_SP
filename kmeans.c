@@ -217,6 +217,7 @@ all_vecs getInput()
         dimension_counter++;
         j++;
     }
+    // You dont update all_vectors.num_vectors! 
     return all_vectors;
 }
 
@@ -247,7 +248,7 @@ void freeMemory(cluster *clus, vector *all_vectors, int K, int N)
     free(all_vectors);
     for (int i = 0; i < K; i++)
     {
-        free(clus->members);
+        free(clus->members); // remember to also free the cluster's centeroid 
     }
     free(clus);
 }
