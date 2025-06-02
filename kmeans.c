@@ -38,13 +38,17 @@ void printOutput(cluster *clus, int K);
 void freeMemory(cluster *clus, all_vecs *all_vectors, int K, int N);
 void printVector(vector *vec);
 
-void printVector(vector *vec) {
+void printVector(vector *vec)
+{
     int i;
-    for (i = 0; i < vec->dimension; i++) {
-        if(i==vec->dimension-1){
+    for (i = 0; i < vec->dimension; i++)
+    {
+        if (i == vec->dimension - 1)
+        {
             printf("%.4f", (vec->coordinates)[i]);
         }
-        else printf("%.4f,", (vec->coordinates)[i]);
+        else
+            printf("%.4f,", (vec->coordinates)[i]);
     }
     printf("\n");
 }
@@ -191,7 +195,7 @@ all_vecs getInput()
     int i = 0, j = 0;
     all_vecs all_vectors;
     vector curr_vector;
-    curr_vector.dimension=0;
+    curr_vector.dimension = 0;
     curr_vector.coordinates = (double *)malloc(sizeof(double));
     if (curr_vector.coordinates == NULL)
     {
@@ -209,7 +213,8 @@ all_vecs getInput()
             vector new_vector;
             curr_vector.coordinates[j] = n;
             j++;
-            if(i==0) curr_vector.dimension++;
+            if (i == 0)
+                curr_vector.dimension++;
             all_vectors.all_vectors[i] = curr_vector;
             i++;
             all_vectors.all_vectors = (vector *)realloc(all_vectors.all_vectors, sizeof(vector) * (i + 1));
@@ -232,7 +237,7 @@ all_vecs getInput()
         if (i == 0)
         {
             curr_vector.dimension++;
-            curr_vector.coordinates = (double *)realloc(curr_vector.coordinates, sizeof(double) * (j+1));
+            curr_vector.coordinates = (double *)realloc(curr_vector.coordinates, sizeof(double) * (j + 1));
             if (curr_vector.coordinates == NULL)
             {
                 errorHandling();
@@ -276,25 +281,37 @@ void freeMemory(cluster *cluster_array, all_vecs *all_vectors, int K, int N)
 
 int main(int argc, char **argv)
 {
-    int K = atoi(argv[1]);
+    int K;
+    double K_f;
     int iter = 400;
-    all_vecs all_vectors = getInput();
-    cluster *cluster_array = initiateClusters(&all_vectors, K);
-    int N = all_vectors.num_vectors;
-    if (argc == 3)
-    {
-        iter = atoi(argv[2]);
-    }
-    if (!(K > 1 && K < N))
+    double iter_f = 400;
+    all_vecs all_vectors;
+    cluster *cluster_array;
+    int N;
+
+    iter = 400;
+    all_vectors = getInput();
+    N = all_vectors.num_vectors;
+    K = atoi(argv[1]);
+    K_f = atof(argv[1]);
+    if (K!=K_f || !(K > 1 && K < N))
     {
         printf("Incorrect number of clusters!");
         exit(1);
     }
-    if (!(iter > 1 && iter < 1000))
+
+    if (argc == 3)
+    {
+        iter = atoi(argv[2]);
+        iter_f = atof(argv[2]);
+    }
+
+    if (iter!=iter_f || !(iter > 1 && iter < 1000))
     {
         printf("Incorrect maximum iteration!");
         exit(1);
     }
+    cluster_array = initiateClusters(&all_vectors, K);
     cluster_array = iterateAlgorithm(cluster_array, &all_vectors, K, N, iter);
     printOutput(cluster_array, K);
     freeMemory(cluster_array, &all_vectors, K, N);
