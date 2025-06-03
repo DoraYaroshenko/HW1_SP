@@ -17,9 +17,7 @@ DUMMY_INPUT = """\
 1,2,3
 4,5,6
 7,8,9
-1,2,3
-
-"""
+1,2,3\n"""
 
 INVALID_PARAMETERS_VALUES = (
     "-1",
@@ -94,7 +92,6 @@ def generate_random_input():
 
         print(*point, sep=",", file=buf)
 
-    buf.write("\n")
     buf.flush()
     buf.detach()
     file.seek(0)  # Return reading position to the start of the file
@@ -130,8 +127,6 @@ def run_test(tests_dir: Path, config: dict[str, str], test_type: TestType):
 
     # Compare outputs
     if output_path.read_text().rstrip() != result.stdout.rstrip():
-        print(output_path.read_text().rstrip())
-        print(result.stdout.rstrip())
         success = False
         print("process had mismatching output")
 
@@ -150,8 +145,6 @@ def run_negative_test(
     expected_failure = True
 
     result = execute(config, test_type, input_file)
-
-    print(result)
 
     if result.returncode != 1:
         expected_failure = False
@@ -173,7 +166,6 @@ def run_negative_test(
 
 
 def execute(config, test_type, input_file=None) -> subprocess.CompletedProcess[str]:
-    args = []
     match test_type:
         case TestType.PYTHON:
             args = ["python3", "kmeans.py", config["k"]]
@@ -189,8 +181,6 @@ def execute(config, test_type, input_file=None) -> subprocess.CompletedProcess[s
         capture_output=True,
         text=True,
     )
-
-    print(result)
 
     return result
 

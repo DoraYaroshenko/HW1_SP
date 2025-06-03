@@ -23,6 +23,7 @@ typedef struct
     int num_vectors;
 } all_vecs;
 
+int checkArg(char *str);
 int checkConvergence(vector *v1, vector *v2);
 void assignVectorToCluster(vector *v, cluster *clus);
 void updateCentroid(cluster *clus);
@@ -37,6 +38,22 @@ void errorHandling();
 void printOutput(cluster *clus, int K);
 void freeMemory(cluster *clus, all_vecs *all_vectors, int K, int N);
 void printVector(vector *vec);
+
+int checkArg(char *str){
+    int i;
+    int num_of_chars=0;
+
+    while(str[num_of_chars]!='\0'){
+        num_of_chars++;
+    }
+
+    for(i=0;i<num_of_chars;i++){
+        if((((int)str[i])<48 || ((int)str[i])>57)&&(int)str[i]!=46){
+            return(0);
+        }
+    }
+    return(1);
+}
 
 void printVector(vector *vec)
 {
@@ -97,9 +114,9 @@ double distance(vector *v1, vector *v2)
 vector *sumVectors(vector *vectors, int num_of_vecs)
 {
     int i;
-    vector *sum_vec = malloc(sizeof(vector));
+    vector *sum_vec = (vector *)malloc(sizeof(vector));
     sum_vec->dimension = vectors[0].dimension;
-    sum_vec->coordinates = calloc(sum_vec->dimension, sizeof(double));
+    sum_vec->coordinates = (double *)calloc(sum_vec->dimension, sizeof(double));
     if (sum_vec == NULL)
     {
         errorHandling();
@@ -117,10 +134,10 @@ vector *sumVectors(vector *vectors, int num_of_vecs)
 
 vector *mulByScalar(vector *v, double scalar)
 {
-    vector *mul_vec = malloc(sizeof(vector));
+    vector *mul_vec = (vector *)malloc(sizeof(vector));
     int i;
     mul_vec->dimension = v->dimension;
-    mul_vec->coordinates = calloc(v->dimension, sizeof(double));
+    mul_vec->coordinates = (double *)calloc(v->dimension, sizeof(double));
     if (mul_vec == NULL)
     {
         errorHandling();
@@ -152,8 +169,9 @@ cluster *initiateClusters(all_vecs *all_vectors, int K)
         int j;
         cluster_array[i].centroid = (vector *)malloc(sizeof(vector));
         cluster_array[i].centroid->dimension = all_vectors->all_vectors[i].dimension;
-        cluster_array[i].centroid->coordinates = (double *)malloc(sizeof(double)*cluster_array[i].centroid->dimension);
-        for(j=0;j<cluster_array[i].centroid->dimension;j++){
+        cluster_array[i].centroid->coordinates = (double *)malloc(sizeof(double) * cluster_array[i].centroid->dimension);
+        for (j = 0; j < cluster_array[i].centroid->dimension; j++)
+        {
             cluster_array[i].centroid->coordinates[j] = all_vectors->all_vectors[i].coordinates[j];
         }
         cluster_array[i].num_of_members = 0;
@@ -189,8 +207,9 @@ cluster *iterateAlgorithm(cluster *cluster_array, all_vecs *all_vectors, int K, 
             vector *old_centroid_copy = (vector *)malloc(sizeof(vector));
             int l;
             old_centroid_copy->dimension = cluster_array[j].centroid->dimension;
-            old_centroid_copy->coordinates = (double *)malloc(sizeof(double)*old_centroid_copy->dimension);
-            for(l=0;l<old_centroid_copy->dimension;l++){
+            old_centroid_copy->coordinates = (double *)malloc(sizeof(double) * old_centroid_copy->dimension);
+            for (l = 0; l < old_centroid_copy->dimension; l++)
+            {
                 old_centroid_copy->coordinates[l] = cluster_array[j].centroid->coordinates[l];
             }
             updateCentroid(&(cluster_array[j]));
@@ -268,8 +287,7 @@ all_vecs getInput()
 
 void errorHandling()
 {
-    printf("An Error Has Occured");
-    exit(1);
+    printf("An Error Has Occured\n");
 }
 
 void printOutput(cluster *clus, int K)
@@ -307,28 +325,36 @@ int main(int argc, char **argv)
     all_vecs all_vectors;
     cluster *cluster_array;
     int N;
+    int iter_verification = 1;
 
-    iter = 400;
+    if (argc > 3)
+    {
+        errorHandling();
+        return(1);
+    }
+
     all_vectors = getInput();
     N = all_vectors.num_vectors;
     K = atoi(argv[1]);
     K_f = atof(argv[1]);
-    if (K != K_f || !(K > 1 && K < N))
+    if (K != K_f || !(K > 1 && K < N) || checkArg(argv[1])==0)
     {
-        printf("Incorrect number of clusters!");
-        exit(1);
+        printf("Incorrect number of clusters!\n");
+        return (1);
     }
 
     if (argc == 3)
     {
         iter = atoi(argv[2]);
         iter_f = atof(argv[2]);
+        iter_verification=checkArg(argv[2]);
     }
 
-    if (iter != iter_f || !(iter > 1 && iter < 1000))
+
+    if (iter != iter_f || !(iter > 1 && iter < 1000) || iter_verification==0)
     {
-        printf("Incorrect maximum iteration!");
-        exit(1);
+        printf("Incorrect maximum iteration!\n");
+        return (1);
     }
     cluster_array = initiateClusters(&all_vectors, K);
     cluster_array = iterateAlgorithm(cluster_array, &all_vectors, K, N, iter);
