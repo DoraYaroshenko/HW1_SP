@@ -71,6 +71,7 @@ void assignVectorToCluster(vector *v, cluster *clus)
 
 void updateCentroid(cluster *clus)
 {
+    vector *old_centroid = clus->centroid;
     double scalar;
     vector *sum_vector;
     scalar = (double)1 / (clus->num_of_members);
@@ -78,6 +79,8 @@ void updateCentroid(cluster *clus)
     clus->centroid = mulByScalar(sum_vector, scalar);
     free(sum_vector->coordinates);
     free(sum_vector);
+    free(old_centroid->coordinates);
+    free(old_centroid);
 }
 
 double distance(vector *v1, vector *v2)
@@ -146,7 +149,13 @@ cluster *initiateClusters(all_vecs *all_vectors, int K)
     }
     for (i = 0; i < K; i++)
     {
-        cluster_array[i].centroid = &all_vectors->all_vectors[i];
+        int j;
+        cluster_array[i].centroid = (vector *)malloc(sizeof(vector));
+        cluster_array[i].centroid->dimension = all_vectors->all_vectors[i].dimension;
+        cluster_array[i].centroid->coordinates = (double *)malloc(sizeof(double)*cluster_array[i].centroid->dimension);
+        for(j=0;j<cluster_array[i].centroid->dimension;j++){
+            cluster_array[i].centroid->coordinates[j] = all_vectors->all_vectors[i].coordinates[j];
+        }
         cluster_array[i].num_of_members = 0;
         cluster_array[i].members = (vector *)malloc(sizeof(vector));
     }
@@ -177,10 +186,18 @@ cluster *iterateAlgorithm(cluster *cluster_array, all_vecs *all_vectors, int K, 
         }
         for (j = 0; j < K; j++)
         {
-            vector *old_centroid = cluster_array[j].centroid;
+            vector *old_centroid_copy = (vector *)malloc(sizeof(vector));
+            int l;
+            old_centroid_copy->dimension = cluster_array[j].centroid->dimension;
+            old_centroid_copy->coordinates = (double *)malloc(sizeof(double)*old_centroid_copy->dimension);
+            for(l=0;l<old_centroid_copy->dimension;l++){
+                old_centroid_copy->coordinates[l] = cluster_array[j].centroid->coordinates[l];
+            }
             updateCentroid(&(cluster_array[j]));
-            convergence_flag += checkConvergence(old_centroid, cluster_array[j].centroid);
+            convergence_flag += checkConvergence(old_centroid_copy, cluster_array[j].centroid);
             emptyCluster(&cluster_array[j]);
+            free(old_centroid_copy->coordinates);
+            free(old_centroid_copy);
         }
         if (convergence_flag == K)
             break;
@@ -244,6 +261,7 @@ all_vecs getInput()
             }
         }
     }
+    free(curr_vector.coordinates);
     all_vectors.num_vectors = i;
     return all_vectors;
 }
@@ -274,6 +292,7 @@ void freeMemory(cluster *cluster_array, all_vecs *all_vectors, int K, int N)
     for (i = 0; i < K; i++)
     {
         free(cluster_array[i].members);
+        free(cluster_array[i].centroid->coordinates);
         free(cluster_array[i].centroid);
     }
     free(cluster_array);
@@ -294,7 +313,7 @@ int main(int argc, char **argv)
     N = all_vectors.num_vectors;
     K = atoi(argv[1]);
     K_f = atof(argv[1]);
-    if (K!=K_f || !(K > 1 && K < N))
+    if (K != K_f || !(K > 1 && K < N))
     {
         printf("Incorrect number of clusters!");
         exit(1);
@@ -306,7 +325,7 @@ int main(int argc, char **argv)
         iter_f = atof(argv[2]);
     }
 
-    if (iter!=iter_f || !(iter > 1 && iter < 1000))
+    if (iter != iter_f || !(iter > 1 && iter < 1000))
     {
         printf("Incorrect maximum iteration!");
         exit(1);
